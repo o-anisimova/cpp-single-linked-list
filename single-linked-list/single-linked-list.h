@@ -85,6 +85,7 @@ class SingleLinkedList {
         // Возвращает ссылку на самого себя
         // Инкремент итератора, не указывающего на существующий элемент списка, приводит к неопределённому поведению
         BasicIterator& operator++() noexcept {
+            assert(node_ != nullptr);
             node_ = node_->next_node;
             return *this;
         }
@@ -103,6 +104,7 @@ class SingleLinkedList {
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] reference operator*() const noexcept {
+            assert(node_ != nullptr);
             return node_->value;
         }
 
@@ -110,6 +112,7 @@ class SingleLinkedList {
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] pointer operator->() const noexcept {
+            assert(node_ != nullptr);
             return &node_->value;
         }
 
@@ -183,45 +186,20 @@ public:
         return ConstIterator{ const_cast<Node*>(&head_) };
     }
 
-    SingleLinkedList() :size_(0) {}
+    SingleLinkedList() :size_(0u) {}
 
     SingleLinkedList(std::initializer_list<Type> values) {
-        SingleLinkedList<Type> copy_list;
-        std::vector<Type> v(values);
-
-        for (auto it = v.rbegin(); it != v.rend(); ++it) {
-            copy_list.PushFront(*it);
-        }
-        copy_list.size_ = v.size();
-
-        swap(copy_list);
+        InitializeSimpleLinkedList(values.begin(), values.end());
     }
 
     SingleLinkedList(const SingleLinkedList& other) {
-        SingleLinkedList copy_list;
-        std::vector<Type> v;
-
-        for (auto it = other.begin(); it != other.end(); ++it) {
-            v.push_back(*it);
-        }
-
-        for (auto it = v.rbegin(); it != v.rend(); ++it) {
-            copy_list.PushFront(*it);
-        }
-        copy_list.size_ = other.GetSize();
-        swap(copy_list);
+        InitializeSimpleLinkedList(other.begin(), other.end());
     }
 
     // Обменивает содержимое списков за время O(1)
     void swap(SingleLinkedList& other) noexcept {
-        Node head = other.head_;
-        size_t size = other.size_;
-
-        other.head_.next_node = head_.next_node;
-        other.size_ = size_;
-
-        head_.next_node = head.next_node;
-        size_ = size;
+        std::swap(head_.next_node, other.head_.next_node);
+        std::swap(size_, other.size_);
     }
 
     SingleLinkedList& operator=(const SingleLinkedList& rhs) {
@@ -257,12 +235,14 @@ public:
     * Если при создании элемента будет выброшено исключение, список останется в прежнем состоянии
     */
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+        assert(pos.node_ != nullptr);
         pos.node_->next_node = new Node(value, pos.node_->next_node);
         ++size_;
         return Iterator{ pos.node_->next_node };
     }
 
     void PopFront() noexcept {
+        assert(size_ > 0u);
         Node* next_node = head_.next_node;
         head_.next_node = next_node->next_node;
         delete next_node;
@@ -274,6 +254,7 @@ public:
      * Возвращает итератор на элемент, следующий за удалённым
      */
     Iterator EraseAfter(ConstIterator pos) noexcept {
+        assert(size_ > 0u);
         Node* erased_node = pos.node_->next_node;
         pos.node_->next_node = erased_node->next_node;
         delete erased_node;
@@ -297,7 +278,23 @@ public:
 private:
     // Фиктивный узел, используется для вставки "перед первым элементом"
     Node head_;
-    size_t size_ = 0;
+    size_t size_ = 0u;
+
+    template <typename It>
+    void InitializeSimpleLinkedList(It begin, It end) {
+        std::vector<Type> v;
+        for (auto it = begin; it != end; ++it) {
+            v.push_back(*it);
+        }
+
+        SingleLinkedList<Type> copy_list;
+        for (auto it = v.rbegin(); it != v.rend(); ++it) {
+            copy_list.PushFront(*it);
+        }
+        copy_list.size_ = v.size();
+
+        swap(copy_list);
+    }
 };
 
 template <typename Type>
@@ -307,7 +304,7 @@ void swap(SingleLinkedList<Type>& lhs, SingleLinkedList<Type>& rhs) noexcept {
 
 template <typename Type>
 bool operator==(const SingleLinkedList<Type>& lhs, const SingleLinkedList<Type>& rhs) {
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    return lhs.GetSize() == rhs.GetSize() && std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 
 template <typename Type>
